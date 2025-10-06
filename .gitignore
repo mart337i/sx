@@ -1,0 +1,29 @@
+# sx - SSH Connection Manager
+# .gitignore
+
+# Development files
+test.sh
+test-filezilla.xml
+*.tmp
+*.log
+
+# User configuration (should not be committed)
+servers
+config/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Linux
+.directory
+
+# Backup files
+*.bak
+*.backup

@@ -220,6 +220,9 @@ show_instructions() {
     echo "3. Select 'Export site manager entries'"
     echo "4. Choose a location and save as XML"
     echo "5. Run: sx --import /path/to/exported/file.xml"
+    echo ""
+    echo "📖 For detailed documentation:"
+    echo "   https://github.com/mart337i/sx"
     echo
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "⌨️  KEY BINDINGS (in interactive mode)"

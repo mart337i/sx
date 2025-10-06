@@ -243,9 +243,12 @@ KEY BINDINGS (in interactive mode):
     Esc/Ctrl+C      Cancel selection
 
 SETUP:
-    Add this to your ~/.bashrc for Ctrl+S binding:
+    Run the installer for automatic setup:
     
-    source /path/to/sx/sx-integration.sh
+    ./install.sh
+    
+    Or manually add to ~/.bashrc:
+    source ~/.config/sx/sx-integration.sh
 
 FILEZILLA EXPORT:
     1. Open FileZilla
@@ -253,6 +256,9 @@ FILEZILLA EXPORT:
     3. Select "Export site manager entries"
     4. Save as XML file
     5. Run: sx --import exported_file.xml
+
+REPOSITORY:
+    https://github.com/mart337i/sx
 
 EOF
 }
