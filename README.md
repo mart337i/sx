@@ -16,6 +16,7 @@ cd sx
 sx                    # Show all servers
 sx prod               # Search for "prod" servers
 sx --add web 1.2.3.4 admin 22  # Add server
+sx --remove web       # Remove server
 sx --import sites.xml # Import from FileZilla
 sx --ssh-config       # Import from ~/.ssh/config
 ```

@@ -39,7 +39,7 @@ select_server() {
         servers=$(awk -F'|' '{print $1 " (" $2 ")"}' "${SERVERS_FILE}")
     fi
     
-    local selected=$(echo "${servers}" | fzf --prompt="SSH> " --height=60% --layout=reverse --preview='name=$(echo {} | cut -d" " -f1); grep "^$name|" '"${SERVERS_FILE}"' | cut -d"|" -f3,4,5 | sed "s/^/Host: /; s/|/\nUser: /; s/|/\nPort: /"' --preview-window=right:30%)
+    local selected=$(echo "${servers}" | fzf --prompt="SSH> " --height=60% --layout=reverse --preview='name=$(echo {} | cut -d" " -f1); grep "^$name|" '"${SERVERS_FILE}"' | cut -d"|" -f3,4,5 | sed "s/^/Host: /; s/|/\nUser: /; s/|/\nPort: /"' --preview-window=right:30% --preview-label="Server Info")
     [[ -n "${selected}" ]] && connect_server "$(echo "${selected}" | cut -d' ' -f1)"
 }
 
@@ -114,6 +114,20 @@ add_server() {
     echo "Added: ${name}"
 }
 
+# Remove server
+remove_server() {
+    local name="$1"
+    [[ -z "${name}" ]] && { echo "Error: Server name required"; exit 1; }
+    
+    if ! grep -q "^${name}|" "${SERVERS_FILE}" 2>/dev/null; then
+        echo "Server not found: ${name}"
+        exit 1
+    fi
+    
+    grep -v "^${name}|" "${SERVERS_FILE}" > "${SERVERS_FILE}.tmp" && mv "${SERVERS_FILE}.tmp" "${SERVERS_FILE}"
+    echo "Removed: ${name}"
+}
+
 # List servers
 list_servers() {
     [[ ! -s "${SERVERS_FILE}" ]] && { echo "No servers configured"; exit 1; }
@@ -130,6 +144,7 @@ USAGE:
     sx --import FILE        # Import FileZilla XML
     sx --ssh-config [FILE]  # Import SSH config (default: ~/.ssh/config)
     sx --add NAME HOST [USER] [PORT]  # Add server
+    sx --remove NAME        # Remove server
     sx --list              # List servers
     sx --help              # Show help
     sx --version           # Show version
@@ -140,6 +155,7 @@ EXAMPLES:
     sx --import sites.xml  # Import from FileZilla
     sx --ssh-config        # Import from ~/.ssh/config
     sx --add web 1.2.3.4 admin 22
+    sx --remove web        # Remove server
 
 HOTKEY:
     Ctrl+K opens sx (after running: source ~/.config/sx/sx-integration.sh)
@@ -156,6 +172,7 @@ case "${1:-}" in
     --import|-i) import_filezilla "$2" ;;
     --ssh-config) import_ssh_config "${2:-}" ;;
     --add|-a) add_server "$2" "$3" "${4:-root}" "${5:-22}" ;;
+    --remove|-r) remove_server "${2:-}" ;;
     --list|-l) list_servers ;;
     -*) echo "Unknown option: $1. Use --help for usage."; exit 1 ;;
     *) select_server "$*" ;;
