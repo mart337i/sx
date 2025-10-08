@@ -3,6 +3,13 @@
 # sx-integration.sh - Shell integration for sx
 # Source this in ~/.bashrc to enable Ctrl+K hotkey
 
+# Colors
+BLUE='\033[0;34m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BOLD='\033[1m'
+NC='\033[0m'
+
 # Ensure sx is available
 if ! command -v sx &>/dev/null; then
     # Try local directory
@@ -21,7 +28,7 @@ __sx_invoke() {
     if command -v sx &>/dev/null; then
         sx
     else
-        echo "sx not found" >&2
+        echo -e "${YELLOW}sx not found${NC}" >&2
         READLINE_LINE="${current_line}"
         READLINE_POINT="${current_point}"
     fi
@@ -44,9 +51,9 @@ setup_sx_binding() {
             '\C-s') key_name="Ctrl+S" ;;
             *) key_name="${key}" ;;
         esac
-        echo "sx ready. Press ${key_name} to open SSH selector."
+        # Silently bind the key - no output on terminal startup
     else
-        echo "Warning: Could not bind ${key}. Set SX_KEY_BINDING='\C-x' for alternative."
+        echo -e "${YELLOW}Warning:${NC} Could not bind ${key}. Set SX_KEY_BINDING='\\C-x' for alternative."
     fi
 }
 
