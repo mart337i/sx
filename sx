@@ -78,6 +78,35 @@ import_filezilla() {
     echo "Imported $(wc -l < "${SERVERS_FILE}") servers"
 }
 
+# Import SSH config file
+import_ssh_config() {
+    local config="${1:-~/.ssh/config}"
+    # Expand tilde
+    config="${config/#\~/$HOME}"
+    [[ ! -f "${config}" ]] && { echo "File not found: ${config}"; exit 1; }
+    
+    awk '/^Host / && !/\*/ { 
+        if (host && hostname) {
+            if (!user) user="root"
+            if (!port) port="22"
+            print host "|" user "@" hostname ":" port "|" hostname "|" user "|" port
+        }
+        host=$2; hostname=""; user=""; port=""
+    }
+    /^[[:space:]]*HostName/ { hostname=$2 }
+    /^[[:space:]]*User/ { user=$2 }  
+    /^[[:space:]]*Port/ { port=$2 }
+    END {
+        if (host && hostname) {
+            if (!user) user="root"
+            if (!port) port="22"
+            print host "|" user "@" hostname ":" port "|" hostname "|" user "|" port
+        }
+    }' "${config}" | sort -u >> "${SERVERS_FILE}"
+    
+    echo "Imported $(wc -l < "${SERVERS_FILE}") servers"
+}
+
 # Add server
 add_server() {
     local name="$1" host="$2" user="${3:-root}" port="${4:-22}"
@@ -99,6 +128,7 @@ sx - SSH connection selector
 USAGE:
     sx [search]             # Interactive selection (with optional search)
     sx --import FILE        # Import FileZilla XML
+    sx --ssh-config [FILE]  # Import SSH config (default: ~/.ssh/config)
     sx --add NAME HOST [USER] [PORT]  # Add server
     sx --list              # List servers
     sx --help              # Show help
@@ -108,6 +138,7 @@ EXAMPLES:
     sx                     # Show all servers
     sx prod                # Filter for "prod" servers
     sx --import sites.xml  # Import from FileZilla
+    sx --ssh-config        # Import from ~/.ssh/config
     sx --add web 1.2.3.4 admin 22
 
 HOTKEY:
@@ -123,6 +154,7 @@ case "${1:-}" in
     --help|-h) show_help ;;
     --version|-v) echo "sx ${VERSION}" ;;
     --import|-i) import_filezilla "$2" ;;
+    --ssh-config) import_ssh_config "${2:-}" ;;
     --add|-a) add_server "$2" "$3" "${4:-root}" "${5:-22}" ;;
     --list|-l) list_servers ;;
     -*) echo "Unknown option: $1. Use --help for usage."; exit 1 ;;

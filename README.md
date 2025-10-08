@@ -17,14 +17,22 @@ sx                    # Show all servers
 sx prod               # Search for "prod" servers
 sx --add web 1.2.3.4 admin 22  # Add server
 sx --import sites.xml # Import from FileZilla
+sx --ssh-config       # Import from ~/.ssh/config
 ```
 
 Press **Ctrl+K** to open sx from anywhere.
 
-## Import from FileZilla
+## Import Servers
 
+**From FileZilla:**
 1. Open FileZilla → File → Export → Save as XML
 2. Run: `sx --import exported-sites.xml`
+
+**From SSH config:**
+```bash
+sx --ssh-config              # Import ~/.ssh/config
+sx --ssh-config ~/work.conf  # Import specific file
+```
 
 ## Configuration
 
