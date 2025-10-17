@@ -33,37 +33,43 @@ select_server() {
     
     local servers
     if [[ -n "${query}" ]]; then
-        servers=$(awk -F'|' -v q="${query}" 'tolower($0) ~ tolower(q) {print $1 " (" $2 ")"}' "${SERVERS_FILE}")
+        servers=$(awk -F'|' -v q="${query}" 'tolower($0) ~ tolower(q) {print $1 " (" $2 ")|" $3 "|" $4 "|" $5}' "${SERVERS_FILE}")
         [[ -z "${servers}" ]] && { echo -e "${YELLOW}No servers match:${NC} ${query}"; exit 1; }
         
-        # Auto-connect if single match
         local count=$(echo "${servers}" | wc -l)
         if [[ ${count} -eq 1 ]]; then
-            local name=$(echo "${servers}" | cut -d' ' -f1)
-            connect_server "${name}"
+            local host=$(echo "${servers}" | cut -d'|' -f2)
+            local user=$(echo "${servers}" | cut -d'|' -f3)
+            connect_server "${host}" "${user}"
             return
         fi
     else
-        servers=$(awk -F'|' '{print $1 " (" $2 ")"}' "${SERVERS_FILE}")
+        servers=$(awk -F'|' '{print $1 " (" $2 ")|" $3 "|" $4 "|" $5}' "${SERVERS_FILE}")
     fi
     
-    local selected=$(echo "${servers}" | fzf --prompt="SSH> " --height=60% --layout=reverse --preview='name=$(echo {} | cut -d" " -f1); grep "^$name|" '"${SERVERS_FILE}"' | cut -d"|" -f3,4,5 | sed "s/^/Host: /; s/|/\nUser: /; s/|/\nPort: /"' --preview-window=right:30% --preview-label="Server Info")
-    [[ -n "${selected}" ]] && connect_server "$(echo "${selected}" | cut -d' ' -f1)"
+    local selected=$(echo "${servers}" | fzf --prompt="SSH> " --height=60% --layout=reverse --preview='echo {} | awk -F"|" "{print \"Host: \" \$2 \"\nUser: \" \$3 \"\nPort: \" \$4}"' --preview-window=right:30% --preview-label="Server Info")
+    if [[ -n "${selected}" ]]; then
+        local host=$(echo "${selected}" | cut -d'|' -f2)
+        local user=$(echo "${selected}" | cut -d'|' -f3)
+        connect_server "${host}" "${user}"
+    fi
 }
 
 # Connect to server
 connect_server() {
-    local name="$1"
-    local line=$(grep "^${name}|" "${SERVERS_FILE}" | head -1)
-    [[ -z "${line}" ]] && { echo -e "${RED}Server not found:${NC} ${name}"; exit 1; }
+    local target_host="$1"
+    local target_user="$2"
     
-    IFS='|' read -r _ _ host user port <<< "${line}"
+    local line=$(awk -F'|' -v h="${target_host}" -v u="${target_user}" '$3 == h && $4 == u {print; exit}' "${SERVERS_FILE}")
+    [[ -z "${line}" ]] && { echo -e "${RED}Server not found:${NC} ${target_user}@${target_host}"; exit 1; }
+    
+    IFS='|' read -r name _ host user port <<< "${line}"
     
     local cmd="ssh"
     [[ "${port}" != "22" ]] && cmd="${cmd} -p ${port}"
     cmd="${cmd} ${user}@${host}"
     
-    echo -e "${BLUE}Connecting to${NC} ${BOLD}${name}${NC}..."
+    echo -e "${BLUE}Connecting to${NC} ${BOLD}${name}${NC} ${BLUE}(${user}@${host})${NC}..."
     exec ${cmd}
 }
 
