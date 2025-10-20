@@ -3,7 +3,7 @@
 # sx - Interactive SSH connection selector
 set -euo pipefail
 
-VERSION="1.0.0"
+VERSION="1.0.1"
 CONFIG_DIR="${HOME}/.config/sx"
 SERVERS_FILE="${CONFIG_DIR}/servers"
 
@@ -59,17 +59,29 @@ select_server() {
 connect_server() {
     local target_host="$1"
     local target_user="$2"
-    
-    local line=$(awk -F'|' -v h="${target_host}" -v u="${target_user}" '$3 == h && $4 == u {print; exit}' "${SERVERS_FILE}")
+
+    local line
+    line=$(awk -F'|' -v h="${target_host}" -v u="${target_user}" '$3 == h && $4 == u {print; exit}' "${SERVERS_FILE}")
     [[ -z "${line}" ]] && { echo -e "${RED}Server not found:${NC} ${target_user}@${target_host}"; exit 1; }
-    
+
     IFS='|' read -r name _ host user port <<< "${line}"
-    
-    local cmd="ssh"
+
+    # Build SSH command
+    local cmd="ssh -tt"
     [[ "${port}" != "22" ]] && cmd="${cmd} -p ${port}"
     cmd="${cmd} ${user}@${host}"
-    
+
+    # Reset terminal
+    tput sgr0
+    stty sane
+
     echo -e "${BLUE}Connecting to${NC} ${BOLD}${name}${NC} ${BLUE}(${user}@${host})${NC}..."
+    sleep 0.5
+
+    # Save command to history before exec
+    history -s "${cmd}"
+
+    # Run SSH as the final command of the function
     exec ${cmd}
 }
 
