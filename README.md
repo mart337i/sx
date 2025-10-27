@@ -1,123 +1,153 @@
 # sx
 
-Simple SSH connection manager with fuzzy search.
-
-## Install
-
-### Ubuntu/Debian
+Fast SSH connection manager with fuzzy search. Connect to servers instantly from anywhere.
 
 ```bash
+sx prod        # Search and connect
+sx --import    # Import from FileZilla or SSH config
+```
+
+Press **Ctrl+K** from any terminal to launch.
+
+---
+
+## Quick Start
+
+```bash
+# Ubuntu/Debian
 wget https://github.com/mart337i/sx/releases/latest/download/sx_1.0.1-1_all.deb
 sudo dpkg -i sx_1.0.1-1_all.deb
-sudo apt-get install -f
-```
 
-### Fedora/RHEL/Rocky/Alma
-
-```bash
+# Fedora/RHEL
 wget https://github.com/mart337i/sx/releases/latest/download/sx-1.0.1-1.fc39.noarch.rpm
 sudo dnf install sx-1.0.1-1.fc39.noarch.rpm
-```
 
-### openSUSE
-
-```bash
-wget https://github.com/mart337i/sx/releases/latest/download/sx-1.0.1-1.noarch.rpm
-sudo zypper install sx-1.0.1-1.noarch.rpm
-```
-
-### Arch Linux
-
-```bash
-# From AUR (coming soon)
+# Arch Linux (AUR)
 yay -S sx
-# or
-paru -S sx
 
-# Manual build
-git clone https://github.com/mart337i/sx.git
-cd sx/arch
-makepkg -si
+# From source
+curl -fsSL https://raw.githubusercontent.com/mart337i/sx/main/install.sh | bash
 ```
 
-### From Source
-
+Enable global hotkey:
 ```bash
-git clone https://github.com/mart337i/sx.git
-cd sx
-./install.sh
+echo 'source /usr/share/sx/sx-integration.sh' >> ~/.bashrc
 ```
+
+---
+
+## Features
+
+**Interactive Search**
+- Fuzzy search through all servers
+- Filter by name, hostname, or user
+- Single match auto-connects
+
+**Import Existing Servers**
+- FileZilla XML (supports folder organization)
+- SSH config files
+- Manual entry
+
+**Smart Workflow**
+- Global Ctrl+K hotkey
+- Case-insensitive search
+- Store unlimited servers
+- Zero configuration needed
+
+---
 
 ## Usage
 
 ```bash
-sx                    # Show all servers
-sx prod               # Search for "prod" servers
-sx --add web 1.2.3.4 admin 22  # Add server
-sx --remove web       # Remove server
-sx --import sites.xml # Import from FileZilla
-sx --ssh-config       # Import from ~/.ssh/config
+# Interactive selection
+sx
+
+# Search for servers
+sx prod
+sx database
+sx 192.168
+
+# Manage servers
+sx --add myserver 192.168.1.100 admin 22
+sx --remove myserver
+sx --list
+
+# Import servers
+sx --import filezilla-export.xml
+sx --ssh-config ~/.ssh/config
 ```
 
-Press **Ctrl+K** to open sx from anywhere.
+**Navigation:**
+- Type to filter servers
+- Arrow keys to select
+- Enter to connect
+- Ctrl+C to cancel
 
-## Import Servers
+---
 
-**From FileZilla:**
-1. Open FileZilla → File → Export → Save as XML
-2. Run: `sx --import exported-sites.xml`
+## Import
 
-**Note:** FileZilla exports with folder organization are fully supported - all servers from nested folders will be imported.
-
-**From SSH config:**
+**FileZilla**
 ```bash
-sx --ssh-config              # Import ~/.ssh/config
-sx --ssh-config ~/work.conf  # Import specific file
+# 1. Export from FileZilla
+FileZilla → File → Export → Save as sites.xml
+
+# 2. Import
+sx --import sites.xml
 ```
+
+**SSH Config**
+```bash
+# Import default config
+sx --ssh-config
+
+# Import custom config
+sx --ssh-config ~/work/ssh-config
+```
+
+**Folder Support:** FileZilla exports with nested folders are fully supported.
+
+---
 
 ## Configuration
 
-Servers are stored in `~/.config/sx/servers`
+Servers stored in: `~/.config/sx/servers`
 
-Override hotkey: `export SX_KEY_BINDING='\C-x'` in ~/.bashrc
+Custom hotkey:
+```bash
+export SX_KEY_BINDING='\C-x'  # Change to Ctrl+X
+```
 
-## Dependencies
+File format (pipe-delimited):
+```
+prod-web|admin@192.168.1.10:22|192.168.1.10|admin|22
+dev-db|root@localhost:3306|localhost|root|3306
+```
+
+---
+
+## Requirements
 
 - `fzf` - fuzzy finder
 - `ssh` - SSH client
 
-Install on Ubuntu/Debian: `apt install fzf openssh-client`
-
-## Testing
-
-### Test Coverage
-
-sx is tested on multiple distributions to ensure compatibility:
-
-**Tested Distributions:**
-- Ubuntu 20.04, 22.04, 24.04
-- Debian 11, 12
-- Fedora 38, 39, 40
-- Arch Linux (latest)
-
-**Test Suite:**
-- 27 automated tests (BATS framework)
-- Import functionality (FileZilla XML, SSH config)
-- Search and filtering
-- Package installation (.deb, .rpm)
-
-### Run Tests Locally
-
+Install on Ubuntu/Debian:
 ```bash
-# Install BATS testing framework
-npm install -g bats
-
-# Run all tests (27 tests)
-bats tests/
-
-# Run specific test suite
-bats tests/test_import.bats  # 16 tests
-bats tests/test_search.bats  # 11 tests
+apt install fzf openssh-client
 ```
 
-All tests run automatically on GitHub Actions for every push and pull request across all supported distributions.
+Install on Fedora/RHEL:
+```bash
+dnf install fzf openssh-clients
+```
+
+Install on Arch:
+```bash
+pacman -S fzf openssh
+```
+
+---
+
+## License
+
+MIT License - See LICENSE file for details
