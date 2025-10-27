@@ -8,21 +8,32 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  test-ubuntu:
+    name: Test on Ubuntu ${{ matrix.ubuntu-version }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ubuntu-version: ['20.04', '22.04', '24.04']
+    
+    container:
+      image: ubuntu:${{ matrix.ubuntu-version }}
     
     steps:
+    - name: Install git and dependencies
+      run: |
+        apt-get update
+        apt-get install -y git fzf openssh-client curl
+    
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Install dependencies
+    - name: Install Node.js for BATS
       run: |
-        sudo apt-get update
-        sudo apt-get install -y fzf openssh-client
+        curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+        apt-get install -y nodejs
     
     - name: Install BATS
-      run: |
-        sudo npm install -g bats
+      run: npm install -g bats
     
     - name: Make sx executable
       run: chmod +x sx
@@ -38,3 +49,138 @@ jobs:
     
     - name: Test sx --version
       run: ./sx --version
+  
+  test-debian:
+    name: Test on Debian ${{ matrix.debian-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        debian-version: ['11', '12']
+    
+    container:
+      image: debian:${{ matrix.debian-version }}
+    
+    steps:
+    - name: Install git and dependencies
+      run: |
+        apt-get update
+        apt-get install -y git fzf openssh-client curl
+    
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install Node.js for BATS
+      run: |
+        curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+        apt-get install -y nodejs
+    
+    - name: Install BATS
+      run: npm install -g bats
+    
+    - name: Make sx executable
+      run: chmod +x sx
+    
+    - name: Run all tests
+      run: bats tests/
+    
+    - name: Test basic commands
+      run: |
+        ./sx --help
+        ./sx --version
+  
+  test-fedora:
+    name: Test on Fedora ${{ matrix.fedora-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        fedora-version: ['38', '39', '40']
+    
+    container:
+      image: fedora:${{ matrix.fedora-version }}
+    
+    steps:
+    - name: Install dependencies
+      run: |
+        dnf install -y git fzf openssh-clients npm
+    
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install BATS
+      run: npm install -g bats
+    
+    - name: Make sx executable
+      run: chmod +x sx
+    
+    - name: Run all tests
+      run: bats tests/
+    
+    - name: Test basic commands
+      run: |
+        ./sx --help
+        ./sx --version
+  
+  test-arch:
+    name: Test on Arch Linux
+    runs-on: ubuntu-latest
+    
+    container:
+      image: archlinux:latest
+    
+    steps:
+    - name: Install dependencies
+      run: |
+        pacman -Syu --noconfirm git fzf openssh npm
+    
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install BATS
+      run: npm install -g bats
+    
+    - name: Make sx executable
+      run: chmod +x sx
+    
+    - name: Run all tests
+      run: bats tests/
+    
+    - name: Test basic commands
+      run: |
+        ./sx --help
+        ./sx --version
+  
+  test-packages:
+    name: Test Package Installation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Build .deb package
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y dpkg-dev debhelper
+        ./build-deb.sh
+    
+    - name: Test .deb installation in Docker
+      run: |
+        docker run --rm -v $(pwd)/build:/packages ubuntu:22.04 bash -c "
+          apt-get update && 
+          apt-get install -y /packages/*.deb &&
+          sx --version &&
+          sx --help
+        "
+    
+    - name: Build .rpm package
+      run: |
+        sudo apt-get install -y rpm
+        ./build-rpm.sh
+    
+    - name: Test .rpm installation in Docker
+      run: |
+        docker run --rm -v $(pwd)/build:/packages fedora:39 bash -c "
+          dnf install -y /packages/*.noarch.rpm &&
+          sx --version &&
+          sx --help
+        "

@@ -1,0 +1,29 @@
+Source: sx
+Section: admin
+Priority: optional
+Maintainer: Martin Egeskov <mart337i@gmail.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Homepage: https://github.com/mart337i/sx
+Vcs-Git: https://github.com/mart337i/sx.git
+Vcs-Browser: https://github.com/mart337i/sx
+Rules-Requires-Root: no
+
+Package: sx
+Architecture: all
+Depends: ${misc:Depends}, fzf, openssh-client
+Recommends: bash-completion
+Description: Simple SSH connection manager with fuzzy search
+ sx is an interactive SSH connection selector that allows you to
+ manage and connect to servers using fuzzy search with fzf.
+ .
+ Features:
+  * Interactive server selection with fuzzy search
+  * Import servers from FileZilla XML exports (with folder support)
+  * Import servers from SSH config files
+  * Add/remove servers via command line
+  * Global hotkey (Ctrl+K) for quick access
+  * Case-insensitive search
+  * Server filtering by name, host, or username
+ .
+ All server configurations are stored in ~/.config/sx/servers

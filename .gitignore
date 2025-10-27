@@ -31,3 +31,32 @@ config/
 # Test artifacts
 tests/*.tmp
 tests/test-output/
+
+# Package build artifacts
+build/
+
+# Debian/Ubuntu
+*.deb
+*.ddeb
+*.buildinfo
+*.changes
+debian/sx/
+debian/.debhelper/
+debian/files
+debian/debhelper-build-stamp
+debian/*.substvars
+debian/*.log
+
+# RPM (Fedora/RHEL/openSUSE)
+*.rpm
+*.src.rpm
+rpmbuild/
+*.spec.swp
+
+# Arch Linux
+arch/*.tar.gz
+arch/*.tar.xz
+arch/*.pkg.tar.*
+arch/pkg/
+arch/src/
+arch/*.log

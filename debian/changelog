@@ -1,0 +1,14 @@
+sx (1.0.1-1) focal; urgency=medium
+
+  * Initial Debian package release
+  * Interactive SSH connection selector with fuzzy search
+  * Import servers from FileZilla XML exports
+  * Import servers from FileZilla XML with folder sections
+  * Import servers from SSH config files
+  * Add/remove servers via command line
+  * Global hotkey support (Ctrl+K)
+  * Case-insensitive server search
+  * Comprehensive test suite with 27 tests
+  * GitHub Actions CI/CD integration
+
+ -- Martin Egeskov <mart337i@gmail.com>  Mon, 27 Oct 2025 12:00:00 +0000

@@ -1,0 +1,27 @@
+# Maintainer: Martin Egeskov <martin@egeskov.dk>
+
+pkgname=sx
+pkgver=1.0.1
+pkgrel=1
+pkgdesc="Simple SSH connection manager with fuzzy search"
+arch=('any')
+url="https://github.com/mart337i/sx"
+license=('MIT')
+depends=('bash' 'fzf' 'openssh')
+optdepends=('bash-completion: for enhanced shell completion')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/mart337i/sx/archive/v${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    cd "${srcdir}/${pkgname}-${pkgver}"
+    
+    # Install main script
+    install -Dm755 sx "${pkgdir}/usr/bin/sx"
+    
+    # Install integration script
+    install -Dm644 sx-integration.sh "${pkgdir}/usr/share/sx/sx-integration.sh"
+    
+    # Install documentation
+    install -Dm644 README.md "${pkgdir}/usr/share/doc/${pkgname}/README.md"
+    install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

@@ -1,0 +1,14 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_test:
+	@echo "Tests are run in CI/CD pipeline"
+
+override_dh_auto_build:
+	@echo "No build step required for bash script"
+
+override_dh_auto_install:
+	install -D -m 0755 sx $(CURDIR)/debian/sx/usr/bin/sx
+	install -D -m 0644 sx-integration.sh $(CURDIR)/debian/sx/usr/share/sx/sx-integration.sh
