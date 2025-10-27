@@ -27,3 +27,7 @@ config/
 # Backup files
 *.bak
 *.backup
+
+# Test artifacts
+tests/*.tmp
+tests/test-output/

@@ -29,6 +29,8 @@ Press **Ctrl+K** to open sx from anywhere.
 1. Open FileZilla → File → Export → Save as XML
 2. Run: `sx --import exported-sites.xml`
 
+**Note:** FileZilla exports with folder organization are fully supported - all servers from nested folders will be imported.
+
 **From SSH config:**
 ```bash
 sx --ssh-config              # Import ~/.ssh/config
@@ -47,3 +49,20 @@ Override hotkey: `export SX_KEY_BINDING='\C-x'` in ~/.bashrc
 - `ssh` - SSH client
 
 Install on Ubuntu/Debian: `apt install fzf openssh-client`
+
+## Testing
+
+Run tests locally:
+```bash
+# Install BATS testing framework
+npm install -g bats
+
+# Run all tests
+bats tests/
+
+# Run specific test suite
+bats tests/test_import.bats
+bats tests/test_search.bats
+```
+
+Tests are automatically run on GitHub Actions for every push and pull request.

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FileZilla3 version="3.55.0" platform="linux">
+    <Servers>
+        <Folder>Production Servers
+            <Server>
+                <Host>prod-web-01.example.com</Host>
+                <Port>22</Port>
+                <Protocol>0</Protocol>
+                <Type>0</Type>
+                <User>webadmin</User>
+                <Pass encoding="base64"></Pass>
+                <Logontype>1</Logontype>
+                <Name>Production Web 1</Name>
+            </Server>
+            <Server>
+                <Host>prod-db-01.example.com</Host>
+                <Port>3306</Port>
+                <Protocol>0</Protocol>
+                <Type>0</Type>
+                <User>dbadmin</User>
+                <Pass encoding="base64"></Pass>
+                <Logontype>1</Logontype>
+                <Name>Production Database</Name>
+            </Server>
+        </Folder>
+        <Folder>Development
+            <Server>
+                <Host>dev-api.local</Host>
+                <Port>8080</Port>
+                <Protocol>0</Protocol>
+                <Type>0</Type>
+                <User>developer</User>
+                <Pass encoding="base64"></Pass>
+                <Logontype>1</Logontype>
+                <Name>Dev API Server</Name>
+            </Server>
+            <Folder>Testing
+                <Server>
+                    <Host>test.internal.net</Host>
+                    <Port>22</Port>
+                    <Protocol>0</Protocol>
+                    <Type>0</Type>
+                    <User>tester</User>
+                    <Pass encoding="base64"></Pass>
+                    <Logontype>1</Logontype>
+                    <Name>QA Test Server</Name>
+                </Server>
+            </Folder>
+        </Folder>
+        <Folder>Client Servers
+            <Folder>ClientA
+                <Server>
+                    <Host>clienta-prod.example.com</Host>
+                    <Port>22</Port>
+                    <Protocol>0</Protocol>
+                    <Type>0</Type>
+                    <User>clienta</User>
+                    <Pass encoding="base64"></Pass>
+                    <Logontype>1</Logontype>
+                    <Name>Client A Production</Name>
+                </Server>
+            </Folder>
+            <Folder>ClientB
+                <Server>
+                    <Host>192.168.50.100</Host>
+                    <Protocol>0</Protocol>
+                    <Type>0</Type>
+                    <Pass encoding="base64"></Pass>
+                    <Logontype>1</Logontype>
+                    <Name>Client B Server</Name>
+                </Server>
+            </Folder>
+        </Folder>
+    </Servers>
+</FileZilla3>

@@ -1,0 +1,40 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y fzf openssh-client
+    
+    - name: Install BATS
+      run: |
+        sudo npm install -g bats
+    
+    - name: Make sx executable
+      run: chmod +x sx
+    
+    - name: Run import tests
+      run: bats tests/test_import.bats
+    
+    - name: Run search tests
+      run: bats tests/test_search.bats
+    
+    - name: Test sx --help
+      run: ./sx --help
+    
+    - name: Test sx --version
+      run: ./sx --version
