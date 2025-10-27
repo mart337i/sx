@@ -42,7 +42,6 @@ install -Dm644 sx-integration.sh %{buildroot}%{_datadir}/sx/sx-integration.sh
 
 # Install documentation
 install -Dm644 README.md %{buildroot}%{_docdir}/%{name}/README.md
-install -Dm644 LICENSE %{buildroot}%{_datadir}/licenses/%{name}/LICENSE
 
 %files
 %license LICENSE
