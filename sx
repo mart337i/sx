@@ -88,20 +88,48 @@ connect_server() {
 # Import FileZilla XML
 import_filezilla() {
     local xml="$1"
-    [[ ! -f "${xml}" ]] && { echo -e "${RED}File not found:${NC} ${xml}"; exit 1; }
-    
-    awk '/<Server>/ { server=""; host=""; user=""; port=""; name=""; in_server=1 }
-         in_server && /<Host>/ { gsub(/.*<Host>/, ""); gsub(/<\/Host>.*/, ""); host=$0 }
-         in_server && /<User>/ { gsub(/.*<User>/, ""); gsub(/<\/User>.*/, ""); user=$0 }
-         in_server && /<Port>/ { gsub(/.*<Port>/, ""); gsub(/<\/Port>.*/, ""); port=$0 }
-         in_server && /<Name>/ { gsub(/.*<Name>/, ""); gsub(/<\/Name>.*/, ""); name=$0 }
-         /<\/Server>/ { 
-             if (host && (port=="" && (port="22")) && (user=="" && (user="root")) && (name=="" && (name=host)))
-                 print name "|" user "@" host ":" port "|" host "|" user "|" port
-             in_server=0 
-         }' "${xml}" | sort -u >> "${SERVERS_FILE}"
-    
-    echo -e "${GREEN}Imported${NC} $(wc -l < "${SERVERS_FILE}") servers"
+    local servers_file="${SERVERS_FILE:-servers.list}"
+
+    # Color setup (optional)
+    local RED="\033[0;31m"
+    local GREEN="\033[0;32m"
+    local NC="\033[0m" # No Color
+
+    # Check file
+    [[ ! -f "${xml}" ]] && { echo -e "${RED}File not found:${NC} ${xml}"; return 1; }
+
+    awk '
+    /<Server>/ {
+        # Start of a server block
+        host=""; user=""; port=""; name="";
+        in_server=1;
+        next;
+    }
+
+    in_server {
+        if (/<Host>/)  { gsub(/.*<Host>/,""); gsub(/<\/Host>.*/,""); host=$0; next }
+        if (/<User>/)  { gsub(/.*<User>/,""); gsub(/<\/User>.*/,""); user=$0; next }
+        if (/<Port>/)  { gsub(/.*<Port>/,""); gsub(/<\/Port>.*/,""); port=$0; next }
+        if (/<Name>/)  { gsub(/.*<Name>/,""); gsub(/<\/Name>.*/,""); name=$0; next }
+    }
+
+    /<\/Server>/ {
+        # End of a server block — finalize defaults
+        if (host != "") {
+            if (port == "") port = "22";
+            if (user == "") user = "root";
+            if (name == "") name = host;
+
+            print name "|" user "@" host ":" port "|" host "|" user "|" port;
+        }
+        in_server=0;
+        next;
+    }
+    ' "${xml}" | sort -u >> "${servers_file}"
+
+    local count
+    count=$(wc -l < "${servers_file}")
+    echo -e "${GREEN}Imported${NC} ${count} servers into ${servers_file}"
 }
 
 # Import SSH config file
