@@ -1,4 +1,5 @@
 # sx
+<img width="1914" height="609" alt="image" src="https://github.com/user-attachments/assets/17d25196-b2c5-4516-a49d-4c9e7f94e475" />
 
 Fast SSH connection manager with fuzzy search. Connect to servers instantly from anywhere.
 
