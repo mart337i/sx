@@ -12,7 +12,18 @@ echo "Installing sx..."
 if ! command -v fzf &>/dev/null; then
     echo "Error: fzf is required. Install with:"
     echo "  Ubuntu/Debian: apt install fzf"
-    echo "  macOS: brew install fzf"
+    echo "  Fedora/RHEL:   dnf install fzf"
+    echo "  Arch:          pacman -S fzf"
+    echo "  macOS:         brew install fzf"
+    exit 1
+fi
+
+if ! command -v ssh &>/dev/null; then
+    echo "Error: ssh is required. Install with:"
+    echo "  Ubuntu/Debian: apt install openssh-client"
+    echo "  Fedora/RHEL:   dnf install openssh-clients"
+    echo "  Arch:          pacman -S openssh"
+    echo "  macOS:         built-in"
     exit 1
 fi
 

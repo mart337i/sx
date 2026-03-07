@@ -10,6 +10,7 @@ license=('MIT')
 depends=('bash' 'fzf' 'openssh')
 optdepends=('bash-completion: for enhanced shell completion')
 source=("${pkgname}-${pkgver}.tar.gz::https://github.com/mart337i/sx/archive/v${pkgver}.tar.gz")
+# Run `updpkgsums` before publishing to AUR to replace SKIP with the real checksum
 sha256sums=('SKIP')
 
 package() {

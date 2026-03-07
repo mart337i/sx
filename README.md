@@ -16,21 +16,21 @@ Press **Ctrl+K** from any terminal to launch.
 
 ```bash
 # Ubuntu/Debian
-wget https://github.com/mart337i/sx/releases/latest/download/sx_1.0.1-1_all.deb
-sudo dpkg -i sx_1.0.1-1_all.deb
+wget https://github.com/mart337i/sx/releases/latest/download/sx_latest_all.deb
+sudo dpkg -i sx_latest_all.deb
 
-# Fedora/RHEL
-wget https://github.com/mart337i/sx/releases/latest/download/sx-1.0.1-1.fc39.noarch.rpm
-sudo dnf install sx-1.0.1-1.fc39.noarch.rpm
+# Fedora/RHEL (replace filename with the one from the release page)
+wget https://github.com/mart337i/sx/releases/latest
+sudo dnf install sx-*.noarch.rpm
 
 # Arch Linux (AUR)
 yay -S sx
 
-# From source
+# From source (hotkey integration set up automatically)
 curl -fsSL https://raw.githubusercontent.com/mart337i/sx/main/install.sh | bash
 ```
 
-Enable global hotkey:
+Enable global hotkey (package installs only — source installs configure this automatically):
 ```bash
 echo 'source /usr/share/sx/sx-integration.sh' >> ~/.bashrc
 ```

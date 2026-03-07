@@ -68,7 +68,7 @@ jobs:
     - name: Install RPM build tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y rpm
+        sudo apt-get install -y rpm rpm-build rpmdevtools
     
     - name: Extract version from tag
       id: version
@@ -90,8 +90,8 @@ jobs:
     - name: Copy RPM to build directory
       run: |
         mkdir -p build
-        cp ~/rpmbuild/RPMS/noarch/*.rpm build/ || true
-        cp ~/rpmbuild/SRPMS/*.rpm build/ || true
+        cp ~/rpmbuild/RPMS/noarch/*.rpm build/
+        cp ~/rpmbuild/SRPMS/*.rpm build/
     
     - name: Test package
       run: |
