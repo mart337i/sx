@@ -4,8 +4,11 @@
 set -euo pipefail
 
 VERSION="1.0.1"
-CONFIG_DIR="${HOME}/.config/sx"
-SERVERS_FILE="${CONFIG_DIR}/servers"
+CONFIG_DIR="${CONFIG_DIR:-${HOME}/.config/sx}"
+SERVERS_FILE="${SERVERS_FILE:-${CONFIG_DIR}/servers}"
+SSH_DIR="${SSH_DIR:-${HOME}/.ssh}"
+SSH_CONFIG="${SSH_CONFIG:-${SSH_DIR}/config}"
+SX_SSH_CONFIG="${SX_SSH_CONFIG:-${SSH_DIR}/config.d/sx.conf}"
 
 # Colors
 BLUE='\033[0;34m'
@@ -15,177 +18,368 @@ RED='\033[0;31m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-# Setup config directory
-[[ ! -d "${CONFIG_DIR}" ]] && mkdir -p "${CONFIG_DIR}"
-[[ ! -f "${SERVERS_FILE}" ]] && touch "${SERVERS_FILE}"
-
 # Check dependencies
 check_deps() {
     command -v fzf >/dev/null || { echo -e "${RED}Error:${NC} fzf is required. Install with: apt install fzf"; exit 1; }
     command -v ssh >/dev/null || { echo -e "${RED}Error:${NC} ssh is required"; exit 1; }
 }
 
+include_path() {
+    if [[ "${SX_SSH_CONFIG}" == "${HOME}/"* ]]; then
+        printf '~/%s' "${SX_SSH_CONFIG#"${HOME}/"}"
+    else
+        printf '%s' "${SX_SSH_CONFIG}"
+    fi
+}
+
+ensure_ssh_storage() {
+    local sx_config_dir
+    sx_config_dir=$(dirname "${SX_SSH_CONFIG}")
+
+    mkdir -p "${SSH_DIR}" "${sx_config_dir}"
+    chmod 700 "${SSH_DIR}" "${sx_config_dir}" 2>/dev/null || true
+
+    touch "${SSH_CONFIG}" "${SX_SSH_CONFIG}"
+    chmod 600 "${SSH_CONFIG}" "${SX_SSH_CONFIG}" 2>/dev/null || true
+
+    local include_line
+    include_line="Include $(include_path)"
+    if ! grep -Fxq "${include_line}" "${SSH_CONFIG}" 2>/dev/null; then
+        local tmp
+        tmp="${SSH_CONFIG}.tmp"
+        {
+            printf '%s\n' "${include_line}"
+            awk '{ print }' "${SSH_CONFIG}"
+        } > "${tmp}"
+        mv "${tmp}" "${SSH_CONFIG}"
+        chmod 600 "${SSH_CONFIG}" 2>/dev/null || true
+    fi
+}
+
+normalize_alias() {
+    local raw="$1" fallback="${2:-}"
+    local alias
+
+    alias=$(printf '%s' "${raw}" | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]._-' '-')
+    while [[ "${alias}" == *--* ]]; do alias="${alias//--/-}"; done
+    while [[ "${alias}" == -* ]]; do alias="${alias#-}"; done
+    while [[ "${alias}" == *- ]]; do alias="${alias%-}"; done
+
+    if [[ -z "${alias}" && -n "${fallback}" ]]; then
+        alias=$(normalize_alias "${fallback}")
+    fi
+
+    printf '%s' "${alias}"
+}
+
+remove_host_block() {
+    local alias="$1"
+    local tmp
+
+    ensure_ssh_storage
+    tmp="${SX_SSH_CONFIG}.tmp"
+    awk -v target="${alias}" '
+        BEGIN { skip=0; buffer="" }
+
+        function flush_buffer() {
+            if (buffer != "") {
+                printf "%s", buffer
+                buffer=""
+            }
+        }
+
+        /^# sx-name:/ {
+            buffer = buffer $0 ORS
+            next
+        }
+
+        /^Host[[:space:]]+/ {
+            field_count=split($0, fields, /[[:space:]]+/)
+            skip=0
+            for (i=2; i<=field_count; i++) {
+                if (fields[i] == target) skip=1
+            }
+
+            if (skip) {
+                buffer=""
+                next
+            }
+
+            flush_buffer()
+        }
+
+        skip && NF == 0 {
+            skip=0
+            next
+        }
+
+        !skip {
+            flush_buffer()
+            print
+        }
+
+        END { flush_buffer() }
+    ' "${SX_SSH_CONFIG}" > "${tmp}"
+    mv "${tmp}" "${SX_SSH_CONFIG}"
+    chmod 600 "${SX_SSH_CONFIG}" 2>/dev/null || true
+}
+
+write_host_entry() {
+    local display_name="$1" host="$2" user="${3:-root}" port="${4:-22}"
+    local alias
+
+    ensure_ssh_storage
+    alias=$(normalize_alias "${display_name}" "${host}")
+    [[ -z "${alias}" ]] && { echo -e "${RED}Error:${NC} Could not create SSH host alias"; exit 1; }
+
+    remove_host_block "${alias}"
+    {
+        printf '# sx-name: %s\n' "${display_name}"
+        printf 'Host %s\n' "${alias}"
+        printf '    HostName %s\n' "${host}"
+        printf '    User %s\n' "${user:-root}"
+        printf '    Port %s\n' "${port:-22}"
+        printf '\n'
+    } >> "${SX_SSH_CONFIG}"
+
+    printf '%s' "${alias}"
+}
+
+ssh_config_entries() {
+    ensure_ssh_storage
+    awk '
+        function emit() {
+            if (alias == "" || skip) return
+            if (display == "") display=alias
+            if (hostname == "") hostname=alias
+            if (user == "") user="root"
+            if (port == "") port="22"
+            print alias "|" display "|" hostname "|" user "|" port
+        }
+
+        /^# sx-name:[[:space:]]*/ {
+            pending_display=$0
+            sub(/^# sx-name:[[:space:]]*/, "", pending_display)
+            next
+        }
+
+        /^Host[[:space:]]+/ {
+            emit()
+            alias=$2
+            display=pending_display
+            pending_display=""
+            hostname=""
+            user=""
+            port=""
+            skip=(alias ~ /[*?]/)
+            next
+        }
+
+        /^[[:space:]]*HostName[[:space:]]+/ { hostname=$2; next }
+        /^[[:space:]]*User[[:space:]]+/ { user=$2; next }
+        /^[[:space:]]*Port[[:space:]]+/ { port=$2; next }
+
+        END { emit() }
+    ' "${SX_SSH_CONFIG}"
+}
+
+format_entries_for_selection() {
+    awk -F'|' '{print $1 " - " $2 " (" $4 "@" $3 ":" $5 ")|" $1 "|" $3 "|" $4 "|" $5}'
+}
+
+resolve_alias() {
+    local name="$1"
+    local normalized
+
+    normalized=$(normalize_alias "${name}")
+    ssh_config_entries | awk -F'|' -v name="${name}" -v normalized="${normalized}" '
+        $1 == name || $2 == name || $1 == normalized { print $1; exit }
+    '
+}
+
 # Interactive server selection
 select_server() {
     local query="${1:-}"
-    
-    [[ ! -s "${SERVERS_FILE}" ]] && { echo -e "${YELLOW}No servers found.${NC} Use: sx --import file.xml"; exit 1; }
-    
-    local servers
+    local entries servers
+
+    entries=$(ssh_config_entries)
+    [[ -z "${entries}" ]] && { echo -e "${YELLOW}No servers found.${NC} Use: sx --import file.xml or sx --migrate"; exit 1; }
+
     if [[ -n "${query}" ]]; then
-        servers=$(awk -F'|' -v q="${query}" 'tolower($0) ~ tolower(q) {print $1 " (" $2 ")|" $3 "|" $4 "|" $5}' "${SERVERS_FILE}")
+        servers=$(printf '%s\n' "${entries}" | awk -F'|' -v q="${query}" 'index(tolower($0), tolower(q)) {print}' | format_entries_for_selection)
         [[ -z "${servers}" ]] && { echo -e "${YELLOW}No servers match:${NC} ${query}"; exit 1; }
-        
-        local count=$(echo "${servers}" | wc -l)
+
+        local count
+        count=$(printf '%s\n' "${servers}" | wc -l)
         if [[ ${count} -eq 1 ]]; then
-            local host=$(echo "${servers}" | cut -d'|' -f2)
-            local user=$(echo "${servers}" | cut -d'|' -f3)
-            connect_server "${host}" "${user}"
+            local alias
+            alias=$(printf '%s\n' "${servers}" | cut -d'|' -f2)
+            connect_server "${alias}"
             return
         fi
     else
-        servers=$(awk -F'|' '{print $1 " (" $2 ")|" $3 "|" $4 "|" $5}' "${SERVERS_FILE}")
+        servers=$(printf '%s\n' "${entries}" | format_entries_for_selection)
     fi
-    
-    local selected=$(echo "${servers}" | fzf --prompt="SSH> " --height=60% --layout=reverse --preview='echo {} | awk -F"|" "{print \"Host: \" \$2 \"\nUser: \" \$3 \"\nPort: \" \$4}"' --preview-window=right:30% --preview-label="Server Info")
+
+    local selected
+    selected=$(printf '%s\n' "${servers}" | fzf --prompt="SSH> " --height=60% --layout=reverse --preview='echo {} | awk -F"|" "{print \"Alias: \" \$2 \"\nHost: \" \$3 \"\nUser: \" \$4 \"\nPort: \" \$5}"' --preview-window=right:30% --preview-label="Server Info")
     if [[ -n "${selected}" ]]; then
-        local host=$(echo "${selected}" | cut -d'|' -f2)
-        local user=$(echo "${selected}" | cut -d'|' -f3)
-        connect_server "${host}" "${user}"
+        local alias
+        alias=$(printf '%s' "${selected}" | cut -d'|' -f2)
+        connect_server "${alias}"
     fi
 }
 
 # Connect to server
 connect_server() {
-    local target_host="$1"
-    local target_user="$2"
+    local alias="$1"
+    local line display host user port
 
-    local line
-    line=$(awk -F'|' -v h="${target_host}" -v u="${target_user}" '$3 == h && $4 == u {print; exit}' "${SERVERS_FILE}")
-    [[ -z "${line}" ]] && { echo -e "${RED}Server not found:${NC} ${target_user}@${target_host}"; exit 1; }
+    line=$(ssh_config_entries | awk -F'|' -v alias="${alias}" '$1 == alias {print; exit}')
+    [[ -z "${line}" ]] && { echo -e "${RED}Server not found:${NC} ${alias}"; exit 1; }
 
-    IFS='|' read -r name _ host user port <<< "${line}"
+    IFS='|' read -r _ display host user port <<< "${line}"
 
-    # Build SSH command
-    local cmd="ssh -tt"
-    [[ "${port}" != "22" ]] && cmd="${cmd} -p ${port}"
-    cmd="${cmd} ${user}@${host}"
-
-    # Reset terminal
     tput sgr0
     stty sane
 
-    echo -e "${BLUE}Connecting to${NC} ${BOLD}${name}${NC} ${BLUE}(${user}@${host})${NC}..."
+    echo -e "${BLUE}Connecting to${NC} ${BOLD}${display}${NC} ${BLUE}(${user}@${host})${NC}..."
     sleep 0.5
 
-    # Save command to history before exec
-    history -s "${cmd}"
-
-    # Run SSH as the final command of the function
-    exec ${cmd}
+    history -s "ssh -tt ${alias}"
+    exec ssh -tt "${alias}"
 }
 
 # Import FileZilla XML
 import_filezilla() {
     local xml="$1"
-    local servers_file="${SERVERS_FILE:-servers.list}"
+    local count=0
 
-    # Color setup (optional)
-    local RED="\033[0;31m"
-    local GREEN="\033[0;32m"
-    local NC="\033[0m" # No Color
-
-    # Check file
     [[ ! -f "${xml}" ]] && { echo -e "${RED}File not found:${NC} ${xml}"; return 1; }
 
-    awk '
-    /<Server>/ {
-        # Start of a server block
-        host=""; user=""; port=""; name="";
-        in_server=1;
-        next;
-    }
-
-    in_server {
-        if (/<Host>/)  { gsub(/.*<Host>/,""); gsub(/<\/Host>.*/,""); host=$0; next }
-        if (/<User>/)  { gsub(/.*<User>/,""); gsub(/<\/User>.*/,""); user=$0; next }
-        if (/<Port>/)  { gsub(/.*<Port>/,""); gsub(/<\/Port>.*/,""); port=$0; next }
-        if (/<Name>/)  { gsub(/.*<Name>/,""); gsub(/<\/Name>.*/,""); name=$0; next }
-    }
-
-    /<\/Server>/ {
-        # End of a server block — finalize defaults
-        if (host != "") {
-            if (port == "") port = "22";
-            if (user == "") user = "root";
-            if (name == "") name = host;
-
-            print name "|" user "@" host ":" port "|" host "|" user "|" port;
+    while IFS='|' read -r name host user port; do
+        [[ -z "${host}" ]] && continue
+        write_host_entry "${name}" "${host}" "${user:-root}" "${port:-22}" >/dev/null
+        count=$((count + 1))
+    done < <(awk '
+        /<Server>/ {
+            host=""; user=""; port=""; name="";
+            in_server=1;
+            next;
         }
-        in_server=0;
-        next;
-    }
-    ' "${xml}" | sort -u >> "${servers_file}"
 
-    local count
-    count=$(wc -l < "${servers_file}")
-    echo -e "${GREEN}Imported${NC} ${count} servers into ${servers_file}"
+        in_server {
+            if (/<Host>/)  { gsub(/.*<Host>/,""); gsub(/<\/Host>.*/,""); host=$0; next }
+            if (/<User>/)  { gsub(/.*<User>/,""); gsub(/<\/User>.*/,""); user=$0; next }
+            if (/<Port>/)  { gsub(/.*<Port>/,""); gsub(/<\/Port>.*/,""); port=$0; next }
+            if (/<Name>/)  { gsub(/.*<Name>/,""); gsub(/<\/Name>.*/,""); name=$0; next }
+        }
+
+        /<\/Server>/ {
+            if (host != "") {
+                if (port == "") port = "22";
+                if (user == "") user = "root";
+                if (name == "") name = host;
+
+                print name "|" host "|" user "|" port;
+            }
+            in_server=0;
+            next;
+        }
+    ' "${xml}")
+
+    echo -e "${GREEN}Imported${NC} ${count} servers into ${SX_SSH_CONFIG}"
 }
 
 # Import SSH config file
 import_ssh_config() {
     local config="${1:-~/.ssh/config}"
-    # Expand tilde
+    local count=0
+
     config="${config/#\~/$HOME}"
     [[ ! -f "${config}" ]] && { echo -e "${RED}File not found:${NC} ${config}"; exit 1; }
-    
-    awk '/^Host / && !/\*/ { 
-        if (host && hostname) {
-            if (!user) user="root"
-            if (!port) port="22"
-            print host "|" user "@" hostname ":" port "|" hostname "|" user "|" port
+
+    while IFS='|' read -r alias hostname user port; do
+        [[ -z "${alias}" || -z "${hostname}" ]] && continue
+        write_host_entry "${alias}" "${hostname}" "${user:-root}" "${port:-22}" >/dev/null
+        count=$((count + 1))
+    done < <(awk '
+        function emit() {
+            if (host && hostname && !skip) {
+                if (!user) user="root"
+                if (!port) port="22"
+                print host "|" hostname "|" user "|" port
+            }
         }
-        host=$2; hostname=""; user=""; port=""
-    }
-    /^[[:space:]]*HostName/ { hostname=$2 }
-    /^[[:space:]]*User/ { user=$2 }  
-    /^[[:space:]]*Port/ { port=$2 }
-    END {
-        if (host && hostname) {
-            if (!user) user="root"
-            if (!port) port="22"
-            print host "|" user "@" hostname ":" port "|" hostname "|" user "|" port
+
+        /^Host[[:space:]]+/ {
+            emit()
+            host=$2; hostname=""; user=""; port=""; skip=($0 ~ /[*?]/)
+            next
         }
-    }' "${config}" | sort -u >> "${SERVERS_FILE}"
-    
-    echo -e "${GREEN}Imported${NC} $(wc -l < "${SERVERS_FILE}") servers"
+
+        /^[[:space:]]*HostName[[:space:]]+/ { hostname=$2; next }
+        /^[[:space:]]*User[[:space:]]+/ { user=$2; next }
+        /^[[:space:]]*Port[[:space:]]+/ { port=$2; next }
+
+        END { emit() }
+    ' "${config}")
+
+    echo -e "${GREEN}Imported${NC} ${count} servers into ${SX_SSH_CONFIG}"
+}
+
+# Migrate legacy pipe-delimited storage
+migrate_servers() {
+    local count=0
+
+    [[ ! -f "${SERVERS_FILE}" ]] && { echo -e "${RED}File not found:${NC} ${SERVERS_FILE}"; exit 1; }
+    [[ ! -s "${SERVERS_FILE}" ]] && { echo -e "${YELLOW}No legacy servers found:${NC} ${SERVERS_FILE}"; exit 1; }
+
+    while IFS='|' read -r name _ host user port; do
+        [[ -z "${name}" || -z "${host}" ]] && continue
+        write_host_entry "${name}" "${host}" "${user:-root}" "${port:-22}" >/dev/null
+        count=$((count + 1))
+    done < "${SERVERS_FILE}"
+
+    echo -e "${GREEN}Migrated${NC} ${count} servers into ${SX_SSH_CONFIG}"
+    echo -e "${YELLOW}Legacy file left untouched:${NC} ${SERVERS_FILE}"
 }
 
 # Add server
 add_server() {
     local name="$1" host="$2" user="${3:-root}" port="${4:-22}"
-    echo "${name}|${user}@${host}:${port}|${host}|${user}|${port}" >> "${SERVERS_FILE}"
-    echo -e "${GREEN}Added:${NC} ${name}"
+    local alias
+
+    [[ -z "${name}" || -z "${host}" ]] && { echo -e "${RED}Error:${NC} NAME and HOST are required"; exit 1; }
+
+    alias=$(write_host_entry "${name}" "${host}" "${user}" "${port}")
+    echo -e "${GREEN}Added:${NC} ${name} (${alias})"
 }
 
 # Remove server
 remove_server() {
     local name="$1"
-    [[ -z "${name}" ]] && {     echo -e "${RED}Error:${NC} Server name required"; exit 1; }
-    
-    if ! grep -q "^${name}|" "${SERVERS_FILE}" 2>/dev/null; then
+    local alias
+
+    [[ -z "${name}" ]] && { echo -e "${RED}Error:${NC} Server name required"; exit 1; }
+    alias=$(resolve_alias "${name}")
+
+    if [[ -z "${alias}" ]]; then
         echo -e "${RED}Server not found:${NC} ${name}"
         exit 1
     fi
-    
-    grep -v "^${name}|" "${SERVERS_FILE}" > "${SERVERS_FILE}.tmp" && mv "${SERVERS_FILE}.tmp" "${SERVERS_FILE}"
-    echo -e "${GREEN}Removed:${NC} ${name}"
+
+    remove_host_block "${alias}"
+    echo -e "${GREEN}Removed:${NC} ${name} (${alias})"
 }
 
 # List servers
 list_servers() {
-    [[ ! -s "${SERVERS_FILE}" ]] && { echo -e "${YELLOW}No servers configured${NC}"; exit 1; }
-    awk -F'|' '{printf "%-20s %s\n", $1, $2}' "${SERVERS_FILE}"
+    local entries
+
+    entries=$(ssh_config_entries)
+    [[ -z "${entries}" ]] && { echo -e "${YELLOW}No servers configured${NC}"; exit 1; }
+    printf '%s\n' "${entries}" | awk -F'|' '{printf "%-20s %-30s %s@%s:%s\n", $1, $2, $4, $3, $5}'
 }
 
 # Show help
@@ -197,36 +391,47 @@ show_help() {
     echo "    sx [search]             # Interactive selection (with optional search)"
     echo "    sx --import FILE        # Import FileZilla XML"
     echo "    sx --ssh-config [FILE]  # Import SSH config (default: ~/.ssh/config)"
+    echo "    sx --migrate            # Migrate legacy ~/.config/sx/servers"
     echo "    sx --add NAME HOST [USER] [PORT]  # Add server"
     echo "    sx --remove NAME        # Remove server"
-    echo "    sx --list              # List servers"
-    echo "    sx --help              # Show help"
-    echo "    sx --version           # Show version"
+    echo "    sx --list               # List servers"
+    echo "    sx --help               # Show help"
+    echo "    sx --version            # Show version"
     echo ""
     echo -e "${BOLD}EXAMPLES:${NC}"
     echo "    sx                     # Show all servers"
     echo "    sx prod                # Filter for \"prod\" servers"
     echo "    sx --import sites.xml  # Import from FileZilla"
     echo "    sx --ssh-config        # Import from ~/.ssh/config"
+    echo "    sx --migrate           # Convert old sx server storage"
     echo "    sx --add web 1.2.3.4 admin 22"
     echo "    sx --remove web        # Remove server"
+    echo ""
+    echo -e "${BOLD}STORAGE:${NC}"
+    echo "    Hosts are stored in $(include_path) and included from ~/.ssh/config"
     echo ""
     echo -e "${BOLD}HOTKEY:${NC}"
     echo "    Ctrl+K opens sx (after running: source ~/.config/sx/sx-integration.sh)"
     echo ""
 }
 
-# Main
-check_deps
+main() {
+    check_deps
 
-case "${1:-}" in
-    --help|-h) show_help ;;
-    --version|-v) echo "sx ${VERSION}" ;;
-    --import|-i) import_filezilla "$2" ;;
-    --ssh-config) import_ssh_config "${2:-}" ;;
-    --add|-a) add_server "$2" "$3" "${4:-root}" "${5:-22}" ;;
-    --remove|-r) remove_server "${2:-}" ;;
-    --list|-l) list_servers ;;
-    -*) echo -e "${RED}Unknown option:${NC} $1. Use --help for usage."; exit 1 ;;
-    *) select_server "$*" ;;
-esac
+    case "${1:-}" in
+        --help|-h) show_help ;;
+        --version|-v) echo "sx ${VERSION}" ;;
+        --import|-i) import_filezilla "${2:-}" ;;
+        --ssh-config) import_ssh_config "${2:-}" ;;
+        --migrate) migrate_servers ;;
+        --add|-a) add_server "${2:-}" "${3:-}" "${4:-root}" "${5:-22}" ;;
+        --remove|-r) remove_server "${2:-}" ;;
+        --list|-l) list_servers ;;
+        -*) echo -e "${RED}Unknown option:${NC} $1. Use --help for usage."; exit 1 ;;
+        *) select_server "$*" ;;
+    esac
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi

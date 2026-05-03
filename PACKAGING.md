@@ -226,7 +226,8 @@ lintian build/sx_1.0.1-1_all.deb
 - `/usr/share/doc/sx/copyright` - License
 
 **User files (created at runtime):**
-- `~/.config/sx/servers` - Server list
+- `~/.ssh/config.d/sx.conf` - sx-managed SSH config entries
+- `~/.ssh/config` - includes the sx-managed config file
 
 ## Maintenance
 
@@ -465,4 +466,3 @@ Before releasing a new version:
 
 **Error: `updpkgsums: command not found`**
 - Solution: Install pacman-contrib: `pacman -S pacman-contrib`
-

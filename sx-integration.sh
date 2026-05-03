@@ -11,31 +11,43 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 # Ensure sx is available
-if ! command -v sx &>/dev/null; then
+if ! command -v sx >/dev/null 2>&1; then
     # Try local directory
     SX_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     [[ -x "${SX_DIR}/sx" ]] && export PATH="${SX_DIR}:${PATH}"
 fi
 
+__sx_ready() {
+    command -v sx >/dev/null 2>&1 || return 1
+    command -v fzf >/dev/null 2>&1 || return 1
+    command -v ssh >/dev/null 2>&1 || return 1
+}
+
 # Function to invoke sx
 __sx_invoke() {
     local current_line="${READLINE_LINE}"
     local current_point="${READLINE_POINT}"
-    
+
+    if ! __sx_ready; then
+        echo -e "${YELLOW}sx disabled:${NC} install sx, fzf, and ssh to enable Ctrl+K" >&2
+        return 1
+    fi
+
     READLINE_LINE=""
     READLINE_POINT=0
-    
-    if command -v sx &>/dev/null; then
-        sx
-    else
-        echo -e "${YELLOW}sx not found${NC}" >&2
+
+    if ! sx; then
         READLINE_LINE="${current_line}"
         READLINE_POINT="${current_point}"
+        return 1
     fi
 }
 
 # Set up Ctrl+K binding
 setup_sx_binding() {
+    [[ $- != *i* ]] && return 0
+    __sx_ready || return 0
+
     # Disable flow control to free up Ctrl+S if needed
     stty -ixon 2>/dev/null || true
     

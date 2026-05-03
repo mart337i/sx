@@ -6,6 +6,7 @@ Fast SSH connection manager with fuzzy search. Connect to servers instantly from
 ```bash
 sx prod        # Search and connect
 sx --import    # Import from FileZilla or SSH config
+sx --migrate   # Convert old sx storage to SSH config
 ```
 
 Press **Ctrl+K** from any terminal to launch.
@@ -32,7 +33,7 @@ curl -fsSL https://raw.githubusercontent.com/mart337i/sx/main/install.sh | bash
 
 Enable global hotkey (package installs only — source installs configure this automatically):
 ```bash
-echo 'source /usr/share/sx/sx-integration.sh' >> ~/.bashrc
+echo '[[ -r /usr/share/sx/sx-integration.sh ]] && source /usr/share/sx/sx-integration.sh' >> ~/.bashrc
 ```
 
 ---
@@ -72,6 +73,7 @@ sx 192.168
 sx --add myserver 192.168.1.100 admin 22
 sx --remove myserver
 sx --list
+sx --migrate
 
 # Import servers
 sx --import filezilla-export.xml
@@ -108,21 +110,44 @@ sx --ssh-config ~/work/ssh-config
 
 **Folder Support:** FileZilla exports with nested folders are fully supported.
 
+**Legacy sx storage**
+```bash
+# Convert ~/.config/sx/servers into ~/.ssh/config.d/sx.conf
+sx --migrate
+```
+
+The legacy `~/.config/sx/servers` file is left untouched as a backup.
+
 ---
 
 ## Configuration
 
-Servers stored in: `~/.config/sx/servers`
+Servers are stored as normal SSH config in: `~/.ssh/config.d/sx.conf`
+
+`sx` adds this include to `~/.ssh/config` when needed:
+
+```sshconfig
+Include ~/.ssh/config.d/sx.conf
+```
+
+Because entries are standard SSH config, aliases work directly with `ssh`:
+
+```bash
+ssh myserver
+```
 
 Custom hotkey:
 ```bash
 export SX_KEY_BINDING='\C-x'  # Change to Ctrl+X
 ```
 
-File format (pipe-delimited):
-```
-prod-web|admin@192.168.1.10:22|192.168.1.10|admin|22
-dev-db|root@localhost:3306|localhost|root|3306
+File format:
+```sshconfig
+# sx-name: Production Server
+Host production-server
+    HostName 192.168.1.10
+    User admin
+    Port 22
 ```
 
 ---

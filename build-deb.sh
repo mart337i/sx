@@ -60,7 +60,7 @@ if [ "$1" = "configure" ]; then
     echo "sx has been installed successfully!"
     echo ""
     echo "To enable the global hotkey (Ctrl+K), add this to your ~/.bashrc:"
-    echo "  source /usr/share/sx/sx-integration.sh"
+    echo "  [[ -r /usr/share/sx/sx-integration.sh ]] && source /usr/share/sx/sx-integration.sh"
     echo ""
     echo "Get started with:"
     echo "  sx --help"

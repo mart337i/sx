@@ -40,7 +40,7 @@ makepkg -si
 To enable the global hotkey (Ctrl+K), add to your `~/.bashrc`:
 
 ```bash
-source /usr/share/sx/sx-integration.sh
+[[ -r /usr/share/sx/sx-integration.sh ]] && source /usr/share/sx/sx-integration.sh
 ```
 
 ## Updating the AUR Package

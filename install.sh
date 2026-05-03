@@ -5,6 +5,7 @@ set -euo pipefail
 
 INSTALL_DIR="${HOME}/.local/bin"
 CONFIG_DIR="${HOME}/.config/sx"
+BASHRC="${HOME}/.bashrc"
 
 echo "Installing sx..."
 
@@ -37,14 +38,14 @@ chmod +x "${INSTALL_DIR}/sx"
 
 # Add to PATH if needed
 if [[ ":$PATH:" != *":${INSTALL_DIR}:"* ]]; then
-    echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> ~/.bashrc
-    echo "Added ~/.local/bin to PATH in ~/.bashrc"
+    printf '\n# sx local install\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "${BASHRC}"
+    echo "Added ~/.local/bin to PATH in ${BASHRC}"
 fi
 
 # Add integration to bashrc
-if ! grep -q "sx-integration.sh" ~/.bashrc 2>/dev/null; then
-    echo "source ~/.config/sx/sx-integration.sh" >> ~/.bashrc
-    echo "Added sx integration to ~/.bashrc"
+if ! grep -q "sx-integration.sh" "${BASHRC}" 2>/dev/null; then
+    printf '\n# sx hotkey integration\n[[ -r "$HOME/.config/sx/sx-integration.sh" ]] && source "$HOME/.config/sx/sx-integration.sh"\n' >> "${BASHRC}"
+    echo "Added sx integration to ${BASHRC}"
 fi
 
 echo ""
@@ -58,3 +59,4 @@ echo ""
 echo "Add servers with:"
 echo "  sx --add name host user port"
 echo "  sx --import filezilla-export.xml"
+echo "  sx --migrate  # convert legacy ~/.config/sx/servers"
